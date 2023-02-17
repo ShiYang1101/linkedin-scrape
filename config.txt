@@ -1,0 +1,8 @@
+Username: shiyanglee1998@gmail.com
+
+
+Job_search: data
+Location: United Kingdom
+
+JOB_LISTING_XPATH : //*[@id="main"]/div/section[1]/div/ul/*
+LINK_XPATH : //div[contains(@class, "jobs-unified-top-card t-14")]//a[@href]
