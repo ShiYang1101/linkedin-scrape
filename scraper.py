@@ -21,10 +21,18 @@ JOB_LISTING_XPATH = '//*[@id="main"]/div/section[1]/div/ul/*'
 LINK_XPATH = '//div[contains(@class, "jobs-unified-top-card t-14")]//a[@href]'
 
 def config_to_dict(file = './config.txt'):
+    """
+    Helper function to read configuration file, creating a dictionary with 
+    matching variable and values.
+    
+    Input: str, path to config file.
+    Output: dict.
+    """
 
     with open('./config.txt', 'r') as f:
         lines = f.readlines()
     f.close()
+    # Splitting variables and values, creating dictionary
     return dict([[y.strip() for y in x] for x in \
                 [x.strip().split(':') for x in lines] if x != ['']])
 
@@ -61,27 +69,46 @@ def get_id(driver):
     return int(_id[0]) 
 
 def get_skills(driver):
+    """
+    Support function for getting the skill section from single job posting on Linkedin.
+    Assumed that the relevant job posting has been clicked.
+    
+    Input: selenium.driver, driver used to navigate webpage.
+    Output: list, list of skills in job posting.
+    """
+
     time.sleep(5)
     try:
+        # Open skills page for relevant job posting
+
+        # Wait until skills section available
         WebDriverWait(driver, 30).until(
             EC.presence_of_all_elements_located((By.XPATH, 
                         "//button[contains(@aria-label, 'View strong skill match modal')]"))
         )
+
+        # Openeing skill section
         try:
             driver.find_element(By.XPATH, 
                             "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+
+        # Try again if skill section's Webelement changed
         except StaleElementReferenceException:
             driver.find_element(By.XPATH, 
                             "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+
+    # No skill section found, return False
     except TimeoutException:
         return False
 
     try:
+        # Find WebElement containg list of skills
         WebDriverWait(driver, 90).until(
             EC.presence_of_all_elements_located((By.XPATH, 
                         "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
         )
     except TimeoutException:
+        # Try again in case WebElement changes 
         driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
         try:
             driver.find_element(By.XPATH, 
@@ -89,32 +116,49 @@ def get_skills(driver):
         except StaleElementReferenceException:
             driver.find_element(By.XPATH, 
                             "//button[contains(@aria-label, 'View strong skill match modal')]").click()
-            WebDriverWait(driver, 30).until(
+            WebDriverWait(driver, 50).until(
                 EC.presence_of_all_elements_located((By.XPATH, 
                             "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
             )
 
 
+    # Acquiring skills listed in WebElement
     skill = driver.find_elements(By.XPATH, 
                             "//ul[contains(@class, 'job-details-skill-match-status-list')]")
 
+    # SKills not loaded in time, returning False and exit function
     try:
         text = skill[0].text.replace("Add", '')
     except IndexError:
+        # Closing skill section page
+        driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
         return False
-
+    
+    # Closing skill section page
     driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
 
     return [skill for skill in text.split("\n") if skill != '']
     
     
 def generate_skill_df(driver, elem):
+    """Support function generating dataframe for skills for each job posting.
+    
+    Input:
+    driver: selenium.driver, driver used to navigate web pages.
+    elem: selenium.WebElement, WebElement of a single job posting.
+    """
+
+    # Move navigator to relevant job posting
     action = ActionChains(driver)
     action.move_to_element(elem).perform()
-    elem.click()
+
+    # Acquiring id for corresponding job posting
     _id = get_id(elem)
+
+    # Acquiring list of skills
     _skills = get_skills(driver)
 
+    # If no skills provided, exit function
     if _skills == False:
         return 
 
@@ -124,6 +168,9 @@ def generate_skill_df(driver, elem):
     return(_df)
 
 def generate_all_skill_df(driver, elems):
+    """
+    Testing function for generating and concatenating dataframe for skills in whole page.
+    """
     df_list = []
     for elem in elems:
         _df = generate_skill_df(elem)
@@ -133,10 +180,23 @@ def generate_all_skill_df(driver, elems):
     return pd.concat(df_list)
 
 def set_execute(func):
+    """
+    Helper function to set function to auto execute.
+    Functions set to auto execute will be run immediately after instance of linkedin_soup
+    has been create
+    
+    Input: function
+    Output: function
+    """
     func.execute = True
     return func
 
+
 class linkedin_soup(object):
+    """
+    Class for processing BeautifulSoup object of linkeding job posting pages.
+    Method include scraping job titles, company type, salary, skills required and job description.
+    """
 
     def __init__(self, soup, auto_execute = True):
         self.soup = soup
@@ -241,27 +301,41 @@ class listing_wait(object):
             return _elements
 
 def scrape_page(driver, pbar = None):
+    """
+    Helper function to scrape all job posting in a single Linkedin job posting
+    page. Utilized Class of linkedin_soup
+
+    Input: selenium.driver, driver used to navigate web pages.
+    Output: tuple, tuple containing dataframe containing skill information and job details.
+    """
     # WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, 
     #                         "//ul[contains(@class, 'scaffold-layout__list-container')]")))
 
+    # Wait until page is fully loaded
     time.sleep(30)
 
+    # Acquiring WebElement of all job posting existing on page.
     job_elems = get_job_elems(driver)
-    # assert len(job_elems) == 25, "Job listing less than 25, web page not properly loaded!"
 
+    # Instantiating empty list to contain dataframe generated for each job posting.
     skill_dfs = []
     job_dfs = []
+
+    # Scraping information for each job posting
     for elem in job_elems:
+
+        # Moving cursor to corresponding job posting to avoid error in Webelement not 
+        # correctly clicked.
         action = ActionChains(driver)
         action.move_to_element(elem).perform()
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(elem))
+        WebDriverWait(driver, 30).until(EC.element_to_be_clickable(elem))
         try:
             driver.execute_script("arguments[0].click();", elem)
         except:
             driver.execute_script("arguments[0].click();", elem)
 
-        # test = WebDriverWait(driver, 10).until(listing_wait(By.XPATH, 
-        #                     "//h2[contains(@class, 't-24 t-bold jobs-unified-top-card__job-title')]"))
+        # Wait until job posting correctly loaded
+        # Either 'apply' or 'already applied' button should appear
         try:
             WebDriverWait(driver, 40, ignored_exceptions=StaleElementReferenceException).until(EC.element_to_be_clickable((By.XPATH, 
                                         "//div[contains(@class, 'jobs-apply-button')]//button")))
@@ -269,10 +343,15 @@ def scrape_page(driver, pbar = None):
             WebDriverWait(driver, 40, ignored_exceptions=StaleElementReferenceException).until(EC.presence_of_element_located((By.XPATH, 
                                         "//div[contains(@class, 'feedback--success')]")))
         
+        # Populating dataframe of skills and job details
         skill_dfs.append(generate_skill_df(driver, elem))
         _soup = bs(driver.page_source, features="html.parser")
+
+        # Initiating linkedin_soup instance for scraping job details
         _linkedin_soup = linkedin_soup(_soup)
         job_dfs.append(_linkedin_soup.generate_df())
+
+        # Updating progress bar if available
         if ~isinstance(pbar, type(None)):
             pbar.update(1)
 
