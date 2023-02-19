@@ -1,6 +1,6 @@
 import time
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import numpy as np
 import pandas as pd
 import selenium
@@ -61,9 +61,9 @@ def get_id(driver):
     return int(_id[0]) 
 
 def get_skills(driver):
-    time.sleep(0.5)
+    time.sleep(5)
     try:
-        WebDriverWait(driver, 5).until(
+        WebDriverWait(driver, 30).until(
             EC.presence_of_all_elements_located((By.XPATH, 
                         "//button[contains(@aria-label, 'View strong skill match modal')]"))
         )
@@ -77,17 +77,31 @@ def get_skills(driver):
         return False
 
     try:
-        WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 90).until(
             EC.presence_of_all_elements_located((By.XPATH, 
                         "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
         )
     except TimeoutException:
-        return
+        driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
+        try:
+            driver.find_element(By.XPATH, 
+                            "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+        except StaleElementReferenceException:
+            driver.find_element(By.XPATH, 
+                            "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+            WebDriverWait(driver, 30).until(
+                EC.presence_of_all_elements_located((By.XPATH, 
+                            "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
+            )
+
 
     skill = driver.find_elements(By.XPATH, 
                             "//ul[contains(@class, 'job-details-skill-match-status-list')]")
 
-    text = skill[0].text.replace("Add", '')
+    try:
+        text = skill[0].text.replace("Add", '')
+    except IndexError:
+        return False
 
     driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
 
@@ -178,8 +192,13 @@ class linkedin_soup(object):
     @set_execute
     def get_employees_company(self):
         insight = self.soup.find_all(class_=re.compile('jobs-unified-top-card__job-insight'))
-        emp_comp = [string for string in [match.find(string=re.compile(".*employees.*")) 
-                                for match in insight] if string][0]
+        try: 
+            emp_comp = [string for string in [match.find(string=re.compile(".*employees.*")) 
+                                    for match in insight] if string][0]
+        except IndexError:
+            self.employee = np.nan
+            self.company_type = np.nan
+            return
         try:
             self.employee, self.company_type = tuple([data.strip() for data in emp_comp.split("·")])
         except ValueError:
@@ -221,35 +240,14 @@ class listing_wait(object):
         else:
             return _elements
 
-# driver.refresh()
-# # WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, 
-# #                         "//ul[contains(@class, 'scaffold-layout__list-container')]")))
-
-# time.sleep(15)
-
-# job_elems = get_job_elems(driver)
-# print(len(job_elems))
-# action = ActionChains(driver)
-
-# for elem in job_elems:
-#     action.move_to_element(elem).perform()
-#     WebDriverWait(driver, 10).until(EC.element_to_be_clickable(elem))
-#     elem.click()
-#     # test = WebDriverWait(driver, 10).until(listing_wait(By.XPATH, 
-#     #                     "//h2[contains(@class, 't-24 t-bold jobs-unified-top-card__job-title')]"))
-#     WebDriverWait(driver, 10, ignored_exceptions=StaleElementReferenceException).until(EC.element_to_be_clickable((By.XPATH, 
-#                                 "//div[contains(@class, 'jobs-apply-button')]//button")))
-#     # time.sleep(1)
-#     soup = bs(driver.page_source)
-#     print(get_title(soup), get_company(soup), get_location(soup))
 def scrape_page(driver, pbar = None):
     # WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, 
     #                         "//ul[contains(@class, 'scaffold-layout__list-container')]")))
 
-    time.sleep(15)
+    time.sleep(30)
 
     job_elems = get_job_elems(driver)
-    assert len(job_elems) == 25, "Job listing less than 25, web page not properly loaded!"
+    # assert len(job_elems) == 25, "Job listing less than 25, web page not properly loaded!"
 
     skill_dfs = []
     job_dfs = []
@@ -257,14 +255,18 @@ def scrape_page(driver, pbar = None):
         action = ActionChains(driver)
         action.move_to_element(elem).perform()
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable(elem))
-        elem.click()
+        try:
+            driver.execute_script("arguments[0].click();", elem)
+        except:
+            driver.execute_script("arguments[0].click();", elem)
+
         # test = WebDriverWait(driver, 10).until(listing_wait(By.XPATH, 
         #                     "//h2[contains(@class, 't-24 t-bold jobs-unified-top-card__job-title')]"))
         try:
-            WebDriverWait(driver, 10, ignored_exceptions=StaleElementReferenceException).until(EC.element_to_be_clickable((By.XPATH, 
+            WebDriverWait(driver, 40, ignored_exceptions=StaleElementReferenceException).until(EC.element_to_be_clickable((By.XPATH, 
                                         "//div[contains(@class, 'jobs-apply-button')]//button")))
         except TimeoutException:
-            WebDriverWait(driver, 10, ignored_exceptions=StaleElementReferenceException).until(EC.presence_of_element_located((By.XPATH, 
+            WebDriverWait(driver, 40, ignored_exceptions=StaleElementReferenceException).until(EC.presence_of_element_located((By.XPATH, 
                                         "//div[contains(@class, 'feedback--success')]")))
         
         skill_dfs.append(generate_skill_df(driver, elem))
@@ -280,23 +282,31 @@ def scrape_pages(driver, page_num = 40):
     skill_dfs = []
     job_dfs = []
 
-    with tqdm(total=page_num * 25) as pbar:
-        for page in range(1, page_num + 1):
-            print(f"Page {page}")
-            if page != 1:
-                driver.refresh()
-            WebDriverWait(driver, 10, ignored_exceptions=StaleElementReferenceException).until(EC.element_to_be_clickable((By.XPATH, 
-                                        f"//button[contains(@aria-label, 'Page {page}')]")))
 
-            page_button = driver.find_element(By.XPATH, f"//button[contains(@aria-label, 'Page {page}')]")
-            action = ActionChains(driver)
-            action.move_to_element(page_button)
-            page_button.click()
+    with tqdm(total=page_num * 25, position=1, leave=True) as pbar:
+        with tqdm(range(1, page_num + 1), position=0, leave=True, ncols = 1, 
+                    bar_format = "{l_bar}|{bar}") as page_bar:
+            for page in page_bar:
+                page_bar.set_description(f"Page {page}/{page_num}")
+                if page != 1:
+                    driver.refresh()
+                WebDriverWait(driver, 50, ignored_exceptions=StaleElementReferenceException).until(EC.element_to_be_clickable((By.XPATH, 
+                                            f"//button[contains(@aria-label, 'Page {page}')]")))
 
-            time.sleep(15)
+                page_button = driver.find_element(By.XPATH, f"//button[contains(@aria-label, 'Page {page}')]")
+                action = ActionChains(driver)
+                action.move_to_element(page_button)
+                page_button.click()
 
-            _skill_df, _job_df = scrape_page(driver, pbar)
+                time.sleep(15)
 
-            skill_dfs.append(_skill_df)
-            job_dfs.append(_job_df)
-    return (pd.concat(skill_dfs, ignore_index=True), pd.concat(job_dfs, ignore_index=True))
+                _skill_df, _job_df = scrape_page(driver, pbar)
+
+                skill_dfs.append(_skill_df)
+                job_dfs.append(_job_df)
+
+    # except Exception as err:
+    #     print(f"Error encountered: {err=}")
+    # finally:
+    return (pd.concat([df for df in skill_dfs if ~isinstance(df, type(None))], ignore_index=True), \
+            pd.concat([df for df in job_dfs if ~isinstance(df, type(None))], ignore_index=True))

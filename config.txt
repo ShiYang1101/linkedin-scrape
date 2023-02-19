@@ -6,3 +6,5 @@ Location: United Kingdom
 
 JOB_LISTING_XPATH : //*[@id="main"]/div/section[1]/div/ul/*
 LINK_XPATH : //div[contains(@class, "jobs-unified-top-card t-14")]//a[@href]
+
+DEFAULT_PAGE_NUM : 40

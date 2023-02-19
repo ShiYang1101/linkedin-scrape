@@ -17,8 +17,24 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 from scraper import *
 
+import sys
+from selenium.webdriver.chrome.options import Options
+from fake_useragent import UserAgent
+
+# options = Options()
+# ua = UserAgent()
+# userAgent = ua.random
+# print(userAgent)
+# options.add_argument(f'user-agent={userAgent}')
+
+
 # Getting config variables
 config_dict = config_to_dict()
+
+try:
+    num_page = int(sys.argv[1])
+except IndexError:
+    num_page = int(config_dict['DEFAULT_PAGE_NUM'])
 
 # Connecting to webdriver
 driver = webdriver.Chrome()
@@ -31,15 +47,26 @@ with open('./login_credential.txt') as f:
     lines = f.read().splitlines()
 
 # Locating login WebElement
-username = driver.find_element(By.ID, 'session_key')
-password = driver.find_element(By.ID, 'session_password')
 
 # Sending login credential to WebElements
+
+username = driver.find_element(By.ID, 'session_key')
+password = driver.find_element(By.ID, 'session_password')
 username.send_keys(lines[0])
-time.sleep(5)
+time.sleep(1)
 password.send_keys(lines[1])
 
 driver.find_element(By.CLASS_NAME, 'sign-in-form__submit-button').click()
+
+time.sleep(5)
+
+
+if EC.presence_of_element_located((By.ID, 'home_children_button')):
+    time.sleep(2)
+    inp = input("Captcha detectedd. Finish captcha and press any key to continue:")
+
+# ChallengeSelectableOverlay__StyledElement-sc-6lu34v-0 jHFDJk
+
 
 # Redirecting to job page
 driver.get('https://linkedin.com/jobs')
@@ -55,10 +82,10 @@ time.sleep(2)
 job_search.send_keys(Keys.RETURN)
 time.sleep(5)
 
-skill_df, job_df = scrape_pages(driver)
+skill_df, job_df = scrape_pages(driver, num_page)
 
 try:
-    subprocess.run("mkdir './data'")
+    _ = subprocess.run(["mkdir", '-p', './data'])
 except:
     pass
 
