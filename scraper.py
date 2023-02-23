@@ -37,6 +37,15 @@ def config_to_dict(file = './config.txt'):
                 [x.strip().split(':') for x in lines] if x != ['']])
 
 
+config_dict = config_to_dict()
+
+def apply_date_filter(driver, filter):
+    assert filter.lower() in ['a', 'd', 'm', 'w', 'any','day', 'week', 'month'], \
+                        "Please provide available filter, :\n'a', 'd', 'm', 'w' or 'any', 'day', 'week' or 'month"
+    driver.find_element(By.XPATH, "//span/button[contains(@aria-label, 'Date posted filter')]").click()
+    
+
+
 def get_job_elems(driver):
     """
     Suppporting function used for getting the WebElements of individual job posts
@@ -121,6 +130,8 @@ def get_skills(driver):
                             "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
             )
 
+
+    time.sleep(0.1)
 
     # Acquiring skills listed in WebElement
     skill = driver.find_elements(By.XPATH, 
@@ -328,11 +339,13 @@ def scrape_page(driver, pbar = None):
         # correctly clicked.
         action = ActionChains(driver)
         action.move_to_element(elem).perform()
-        WebDriverWait(driver, 30).until(EC.element_to_be_clickable(elem))
+        elem_button = WebDriverWait(driver, 30).until(EC.element_to_be_clickable(elem))
+        time.sleep(0.2)
         try:
-            driver.execute_script("arguments[0].click();", elem)
+            elem_button.click()
         except:
-            driver.execute_script("arguments[0].click();", elem)
+            elem_button = WebDriverWait(driver, 30).until(EC.element_to_be_clickable(elem))
+            elem_button.click()
 
         # Wait until job posting correctly loaded
         # Either 'apply' or 'already applied' button should appear
@@ -352,7 +365,7 @@ def scrape_page(driver, pbar = None):
         job_dfs.append(_linkedin_soup.generate_df())
 
         # Updating progress bar if available
-        if ~isinstance(pbar, type(None)):
+        if not isinstance(pbar, type(None)):
             pbar.update(1)
 
     return (pd.concat(skill_dfs, ignore_index=True), pd.concat(job_dfs, ignore_index=True))

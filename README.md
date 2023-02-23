@@ -1,2 +1,3 @@
-# linkedin-scrape
-Scraping job posting on Linkedin
+# Scraping Linkedin jobs
+
+Welcome to my repo on scraping Linkedin!
