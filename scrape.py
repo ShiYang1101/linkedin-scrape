@@ -37,39 +37,11 @@ except IndexError:
     num_page = int(config_dict['DEFAULT_PAGE_NUM'])
 
 # Connecting to webdriver
-driver = webdriver.Chrome()
-
-# Directing to Linkedin website
-driver.get('https://www.linkedin.com')
-
-# Reading login credentials
-with open('./login_credential.txt') as f:
-    lines = f.read().splitlines()
-
-# Locating login WebElement
-
-# Sending login credential to WebElements
-
-username = driver.find_element(By.ID, 'session_key')
-password = driver.find_element(By.ID, 'session_password')
-username.send_keys(lines[0])
-time.sleep(1)
-password.send_keys(lines[1])
-
-driver.find_element(By.CLASS_NAME, 'sign-in-form__submit-button').click()
-
-time.sleep(5)
-
-
-if EC.presence_of_element_located((By.ID, 'home_children_button')):
-    time.sleep(2)
-    inp = input("Captcha detectedd. Finish captcha and press any key to continue:")
-
-# ChallengeSelectableOverlay__StyledElement-sc-6lu34v-0 jHFDJk
-
+driver = linkedin_driver()
 
 # Redirecting to job page
-driver.get('https://linkedin.com/jobs')
+driver.go_job()
+
 time.sleep(20)
 job_search = driver.find_element(By.XPATH, '//*[contains(@id, "jobs-search-box-keyword")]')
 job_search.send_keys('data')
@@ -80,7 +52,10 @@ location_search.send_keys('United Kingdom')
 
 time.sleep(2)
 job_search.send_keys(Keys.RETURN)
-time.sleep(5)
+
+time.sleep(20)
+driver.apply_date_filter()
+
 
 skill_df, job_df = scrape_pages(driver, num_page)
 

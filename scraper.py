@@ -39,156 +39,221 @@ def config_to_dict(file = './config.txt'):
 
 config_dict = config_to_dict()
 
-def apply_date_filter(driver, filter):
-    assert filter.lower() in ['a', 'd', 'm', 'w', 'any','day', 'week', 'month'], \
-                        "Please provide available filter, :\n'a', 'd', 'm', 'w' or 'any', 'day', 'week' or 'month"
-    driver.find_element(By.XPATH, "//span/button[contains(@aria-label, 'Date posted filter')]").click()
+
+class linkedin_driver(webdriver.Chrome):
+
+    def __init__(self):
+        super().__init__()
+        self.get('https://www.linkedin.com')
+        self.login()
     
+    def login(self):
+
+        with open('./login_credential.txt') as f:
+            lines = f.read().splitlines()
+
+        # Locating login WebElement
+        # Sending login credential to WebElements
+
+        username = self.find_element(By.ID, 'session_key')
+        password = self.find_element(By.ID, 'session_password')
+        username.send_keys(lines[0])
+        time.sleep(3)
+        password.send_keys(lines[1])
+        time.sleep(3)
+
+        self.find_element(By.XPATH, config_dict['LOGIN_BUTTON_XPATH']).click()
+
+        time.sleep(5)
+
+        if EC.presence_of_element_located((By.ID, 'home_children_button')):
+            time.sleep(2)
+            inp = input("Captcha detectedd. Finish captcha and press any key to continue:")
+
+    def go_job(self):
+        self.get('https://www.linkedin.com/jobs')
+
+    def search_job(self):
+        time.sleep(20)
+        job_search = self.find_element(By.XPATH, '//*[contains(@id, "jobs-search-box-keyword")]')
+        job_search.send_keys(config_dict['Job_search'])
+
+        time.sleep(2)
+        location_search = self.find_element(By.XPATH, '//*[contains(@id, "jobs-search-box-location")]')
+        location_search.send_keys(config_dict['Location'])
+
+        time.sleep(2)
+        job_search.send_keys(Keys.RETURN)
 
 
-def get_job_elems(driver):
-    """
-    Suppporting function used for getting the WebElements of individual job posts
-    
-    Input: selenium.webdriver, driver used to navigate browsers
-    Output: list of WebElement.
-    """
-    return driver.find_elements(By.XPATH, JOB_LISTING_XPATH)
+    def apply_date_filter(self, filter = config_dict['DEFAULT_DATE_FILTER']):
+        '''
+        Applying date filter on job search
+        '''
 
+        assert filter.lower() in ['a', 'd', 'm', 'w', 'any','day', 'week', 'month'], \
+                            "Please provide available filter, :\n'a', 'd', 'm', 'w' or 'any', 'day', 'week' or 'month"
+        filter_dict = {'a': 'any', 'd': 'day', 'm':'month', 'w': 'week'}
+        if len(filter) == 1:
+            filter = filter_dict[filter]
 
-def get_id(driver):
-    """
-    Suppporting function used for getting the WebElements of job posting's ID. 
-    
-    Input: selenium.webdriver, driver used to navigate browsers
-    Output: WebElement.
-    """
-
-    # Acquiring the WebElement containing href of job posting.
-    link_elem = driver.find_element(By.XPATH, LINK_XPATH)
-
-    # Acquiring link to job posting
-    link = link_elem.get_attribute('href')
-
-    # Using regex to acquire job ID from link
-    _id = re.findall('(?<=view/)(.*)(?=/)', link)
-
-    assert len(_id) == 1, "Multiple Id found for same job posting!"
-
-    return int(_id[0]) 
-
-def get_skills(driver):
-    """
-    Support function for getting the skill section from single job posting on Linkedin.
-    Assumed that the relevant job posting has been clicked.
-    
-    Input: selenium.driver, driver used to navigate webpage.
-    Output: list, list of skills in job posting.
-    """
-
-    time.sleep(5)
-    try:
-        # Open skills page for relevant job posting
-
-        # Wait until skills section available
-        WebDriverWait(driver, 30).until(
+        WebDriverWait(self, 30).until(
             EC.presence_of_all_elements_located((By.XPATH, 
-                        "//button[contains(@aria-label, 'View strong skill match modal')]"))
+                        "//span/button[contains(@aria-label, 'Date posted filter')]"))
         )
+        self.find_element(By.XPATH, "//span/button[contains(@aria-label, 'Date posted filter')]").click()
+        time.sleep(5)
 
-        # Openeing skill section
+        filter_xpath = config_dict[f"DATE_FILTER_{filter.upper()}_XPATH"]
+        self.find_element(By.XPATH, filter_xpath).click()
+        
+        time.sleep(1)
+        self.find_element(By.XPATH, config_dict['DATE_FILTER_SUBMIT_XPATH']).click()
+
+        
+    def get_job_elems(self):
+        """
+        Suppporting function used for getting the WebElements of individual job posts
+        
+        Input: selenium.webdriver, driver used to navigate browsers
+        Output: list of WebElement.
+        """
+        return self.find_elements(By.XPATH, config_dict['JOB_LISTING_XPATH'])
+
+
+    def get_id(self):
+        """
+        Suppporting function used for getting the WebElements of job posting's ID. 
+        
+        Input: selenium.webdriver, driver used to navigate browsers
+        Output: WebElement.
+        """
+
+        # Acquiring the WebElement containing href of job posting.
+        link_elem = self.find_element(By.XPATH, config_dict['LINK_XPATH'])
+
+        # Acquiring link to job posting
+        link = link_elem.get_attribute('href')
+
+        # Using regex to acquire job ID from link
+        _id = re.findall('(?<=view/)(.*)(?=/)', link)
+
+        assert len(_id) == 1, "Multiple Id found for same job posting!"
+
+        return int(_id[0]) 
+
+    def get_skills(self):
+        """
+        Support function for getting the skill section from single job posting on Linkedin.
+        Assumed that the relevant job posting has been clicked.
+        
+        Input: selenium.driver, driver used to navigate webpage.
+        Output: list, list of skills in job posting.
+        """
+
+        time.sleep(5)
         try:
-            driver.find_element(By.XPATH, 
-                            "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+            # Open skills page for relevant job posting
 
-        # Try again if skill section's Webelement changed
-        except StaleElementReferenceException:
-            driver.find_element(By.XPATH, 
-                            "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+            # Wait until skills section available
+            WebDriverWait(self, 30).until(
+                EC.presence_of_all_elements_located((By.XPATH, 
+                            "//button[contains(@aria-label, 'View strong skill match modal')]"))
+            )
 
-    # No skill section found, return False
-    except TimeoutException:
-        return False
+            # Openeing skill section
+            try:
+                self.find_element(By.XPATH, 
+                                "//button[contains(@aria-label, 'View strong skill match modal')]").click()
 
-    try:
-        # Find WebElement containg list of skills
-        WebDriverWait(driver, 90).until(
-            EC.presence_of_all_elements_located((By.XPATH, 
-                        "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
-        )
-    except TimeoutException:
-        # Try again in case WebElement changes 
-        driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
+            # Try again if skill section's Webelement changed
+            except StaleElementReferenceException:
+                self.find_element(By.XPATH, 
+                                "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+
+        # No skill section found, return False
+        except TimeoutException:
+            return False
+
         try:
-            driver.find_element(By.XPATH, 
-                            "//button[contains(@aria-label, 'View strong skill match modal')]").click()
-        except StaleElementReferenceException:
-            driver.find_element(By.XPATH, 
-                            "//button[contains(@aria-label, 'View strong skill match modal')]").click()
-            WebDriverWait(driver, 50).until(
+            # Find WebElement containg list of skills
+            WebDriverWait(self, 90).until(
                 EC.presence_of_all_elements_located((By.XPATH, 
                             "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
             )
+        except TimeoutException:
+            # Try again in case WebElement changes 
+            self.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
+            try:
+                self.find_element(By.XPATH, 
+                                "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+            except StaleElementReferenceException:
+                self.find_element(By.XPATH, 
+                                "//button[contains(@aria-label, 'View strong skill match modal')]").click()
+                WebDriverWait(self, 50).until(
+                    EC.presence_of_all_elements_located((By.XPATH, 
+                                "//ul[contains(@class, 'job-details-skill-match-status-list')]"))
+                )
 
 
-    time.sleep(0.1)
+        time.sleep(0.1)
 
-    # Acquiring skills listed in WebElement
-    skill = driver.find_elements(By.XPATH, 
-                            "//ul[contains(@class, 'job-details-skill-match-status-list')]")
+        # Acquiring skills listed in WebElement
+        skill = self.find_elements(By.XPATH, 
+                                "//ul[contains(@class, 'job-details-skill-match-status-list')]")
 
-    # SKills not loaded in time, returning False and exit function
-    try:
-        text = skill[0].text.replace("Add", '')
-    except IndexError:
+        # SKills not loaded in time, returning False and exit function
+        try:
+            text = skill[0].text.replace("Add", '')
+        except IndexError:
+            # Closing skill section page
+            self.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
+            return False
+        
         # Closing skill section page
-        driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
-        return False
-    
-    # Closing skill section page
-    driver.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
+        self.find_element(By.XPATH, "//div[contains(@aria-labelledby, 'jobs-skill-match-modal-header')]//button").click()
 
-    return [skill for skill in text.split("\n") if skill != '']
-    
-    
-def generate_skill_df(driver, elem):
-    """Support function generating dataframe for skills for each job posting.
-    
-    Input:
-    driver: selenium.driver, driver used to navigate web pages.
-    elem: selenium.WebElement, WebElement of a single job posting.
-    """
+        return [skill for skill in text.split("\n") if skill != '']
+        
+        
+    def generate_skill_df(self, elem):
+        """Support function generating dataframe for skills for each job posting.
+        
+        Input:
+        driver: selenium.driver, driver used to navigate web pages.
+        elem: selenium.WebElement, WebElement of a single job posting.
+        """
 
-    # Move navigator to relevant job posting
-    action = ActionChains(driver)
-    action.move_to_element(elem).perform()
+        # Move navigator to relevant job posting
+        action = ActionChains(self)
+        action.move_to_element(elem).perform()
 
-    # Acquiring id for corresponding job posting
-    _id = get_id(elem)
+        # Acquiring id for corresponding job posting
+        _id = self.get_id()
 
-    # Acquiring list of skills
-    _skills = get_skills(driver)
+        # Acquiring list of skills
+        _skills = self.get_skills()
 
-    # If no skills provided, exit function
-    if _skills == False:
-        return 
+        # If no skills provided, exit function
+        if _skills == False:
+            return 
 
-    _df = pd.DataFrame({'id': [_id for x in range(len(_skills))], \
-                        'skills': _skills})
+        _df = pd.DataFrame({'id': [_id for x in range(len(_skills))], \
+                            'skills': _skills})
 
-    return(_df)
+        return(_df)
 
-def generate_all_skill_df(driver, elems):
-    """
-    Testing function for generating and concatenating dataframe for skills in whole page.
-    """
-    df_list = []
-    for elem in elems:
-        _df = generate_skill_df(elem)
-        df_list.append(_df)
-    
-    df_list = [df for df in df_list if ~isinstance(df, type(None))]
-    return pd.concat(df_list)
+    def generate_all_skill_df(self, elems):
+        """
+        Testing function for generating and concatenating dataframe for skills in whole page.
+        """
+        df_list = []
+        for elem in elems:
+            _df = self.generate_skill_df(elem)
+            df_list.append(_df)
+        
+        df_list = [df for df in df_list if ~isinstance(df, type(None))]
+        return pd.concat(df_list)
 
 def set_execute(func):
     """
@@ -326,7 +391,7 @@ def scrape_page(driver, pbar = None):
     time.sleep(30)
 
     # Acquiring WebElement of all job posting existing on page.
-    job_elems = get_job_elems(driver)
+    job_elems = driver.get_job_elems()
 
     # Instantiating empty list to contain dataframe generated for each job posting.
     skill_dfs = []
@@ -357,7 +422,7 @@ def scrape_page(driver, pbar = None):
                                         "//div[contains(@class, 'feedback--success')]")))
         
         # Populating dataframe of skills and job details
-        skill_dfs.append(generate_skill_df(driver, elem))
+        skill_dfs.append(driver.generate_skill_df(elem))
         _soup = bs(driver.page_source, features="html.parser")
 
         # Initiating linkedin_soup instance for scraping job details
@@ -388,6 +453,8 @@ def scrape_pages(driver, page_num = 40):
                 page_button = driver.find_element(By.XPATH, f"//button[contains(@aria-label, 'Page {page}')]")
                 action = ActionChains(driver)
                 action.move_to_element(page_button)
+
+                time.sleep(3)
                 page_button.click()
 
                 time.sleep(15)
