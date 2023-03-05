@@ -4,6 +4,7 @@ Username: shiyanglee1998@gmail.com
 Job_search: data
 Location: United Kingdom
 
+LOGIN_BUTTON_XPATH : //button[contains(@data-id, 'sign-in-form__submit-btn')]
 DATE_FILTER_XPATH : //span/button[contains(@aria-label, 'Date posted filter')]
 JOB_LISTING_XPATH : //*[@id="main"]/div/section[1]/div/ul/*
 LINK_XPATH : //div[contains(@class, "jobs-unified-top-card t-14")]//a[@href]
@@ -12,5 +13,6 @@ DATE_FILTER_ANY_XPATH : //label[@for='timePostedRange-']
 DATE_FILTER_DAY_XPATH : //li/label[contains(@for, 'r86400')]
 DATE_FILTER_MONTH_XPATH : //li/label[contains(@for, 'r2592000')]
 DATE_FILTER_SUBMIT_XPATH : //button[contains(@aria-label, 'Apply current filter')]
+DEFAULT_DATE_FILTER : day
 
 DEFAULT_PAGE_NUM : 40
