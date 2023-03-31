@@ -15,7 +15,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
-from scraper import *
+from scraper import linkedin_driver, linkedin_soup, config_to_dict, scrape_page, scrape_pages
 
 import sys
 from selenium.webdriver.chrome.options import Options
