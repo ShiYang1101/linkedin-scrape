@@ -2,7 +2,8 @@ import re
 import time
 from datetime import datetime, timedelta
 import nltk
-nltk.download('popular', quiet = True)
+nltk.data.path.append("/nltk_data")
+# nltk.download('popular', quiet = True)
 
 from pattern.en import singularize, pluralize
 
@@ -48,8 +49,8 @@ config_dict = config_to_dict()
 
 class linkedin_driver(webdriver.Chrome):
 
-    def __init__(self, debug = False):
-        super().__init__()
+    def __init__(self, debug = False, **kwargs):
+        super().__init__(**kwargs)
         self.get('https://www.linkedin.com')
         if not debug:
             self.login()

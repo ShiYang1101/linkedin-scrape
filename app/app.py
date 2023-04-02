@@ -60,6 +60,20 @@ except IndexError:
     num_page = int(config_dict['DEFAULT_PAGE_NUM'])
 
 def lambda_handler(event, context):
+    options = webdriver.ChromeOptions()
+
+    options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu-sandbox')
+    options.add_argument("--single-process")
+    options.add_argument('window-size=1920x1080')
+    options.add_argument(
+        '"user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36"')
+
+    options.binary_location = "/bin/headless-chromium"
+
 
     curr = conn.cursor()
 
@@ -67,7 +81,7 @@ def lambda_handler(event, context):
 
     # Connecting to webdriver
     print("Connecting to Linkedin from driver...")
-    driver = linkedin_driver(debug = True)
+    driver = linkedin_driver(debug = True, executable_path="/bin/chromedriver", options=options)
     print("Connection established!")
 
     print("Login into Linkedin...")

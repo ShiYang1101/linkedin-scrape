@@ -5,7 +5,12 @@ FROM public.ecr.aws/lambda/python:3.8
 
 COPY requirements.txt  .
 COPY credential ${LAMBDA_TASK_ROOT}
+COPY nltk_data /nltk_data
 ADD /other_module /other_module
+
+RUN mkdir bin
+ADD bin /bin/
+RUN chmod 755 /bin/chromedriver
 
 RUN yum update -y
 RUN yum install -y python3-devel mysql-devel
