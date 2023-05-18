@@ -1,0 +1,8 @@
+setup.py
+scraper/__init__.py
+scraper/linkedin.py
+scraper/linkedindb.py
+scraper.egg-info/PKG-INFO
+scraper.egg-info/SOURCES.txt
+scraper.egg-info/dependency_links.txt
+scraper.egg-info/top_level.txt

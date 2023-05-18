@@ -11,6 +11,7 @@ ADD /other_module /other_module
 RUN mkdir bin
 ADD bin /bin/
 RUN chmod 755 /bin/chromedriver
+RUN chmod 755 /bin/headless-chromium
 
 RUN yum update -y
 RUN yum install -y python3-devel mysql-devel
